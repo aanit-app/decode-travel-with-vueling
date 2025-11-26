@@ -1,202 +1,265 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Navbar } from "@/components/navbar";
 
-type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: JsonValue }
-  | JsonValue[];
+enum CertificateStatus {
+  Pending = "pending",
+  Issued = "issued",
+}
 
-type ApiResponse = {
-  data?: JsonValue;
-  error?: string;
-  loading: boolean;
+enum TATStatus {
+  OnTime = "on time",
+  Cancelled = "cancelled",
+  Delayed = "delayed",
+}
+
+type FlightApiResponse = {
+  flight: string;
+  route: string;
+  sta: string; // ISO 8601 string from API
+  std: string; // ISO 8601 string from API
+  progress: number;
+  tatStatus: TATStatus;
+  cert: CertificateStatus;
+  risk: string;
+};
+
+type Flight = {
+  flight: string;
+  route: string;
+  sta: Date;
+  std: Date;
+  progress: number;
+  tatStatus: TATStatus;
+  cert: CertificateStatus;
+  risk: string;
+};
+
+// Format Date to time string for display
+const formatTime = (date: Date): string => {
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
 };
 
 export default function Home() {
-  const [healthResponse, setHealthResponse] = useState<ApiResponse>({
-    loading: false,
-  });
-  const [exampleGetResponse, setExampleGetResponse] = useState<ApiResponse>({
-    loading: false,
-  });
-  const [examplePostResponse, setExamplePostResponse] = useState<ApiResponse>({
-    loading: false,
-  });
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const testHealth = async () => {
-    setHealthResponse({ loading: true });
-    try {
-      const response = await fetch("/api/health");
-      const data = await response.json();
-      setHealthResponse({ data, loading: false });
-    } catch (error) {
-      setHealthResponse({
-        error: error instanceof Error ? error.message : "Unknown error",
-        loading: false,
-      });
+  useEffect(() => {
+    const fetchFlights = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/flights");
+        
+        if (!response.ok) {
+          setError("Failed to fetch flights");
+          return;
+        }
+
+        const data: FlightApiResponse[] = await response.json();
+        
+        // Convert ISO strings to Date objects
+        const flightsData: Flight[] = data.map((flight) => ({
+          ...flight,
+          sta: new Date(flight.sta),
+          std: new Date(flight.std),
+        }));
+        
+        setFlights(flightsData);
+        setError(null);
+      } catch {
+        setError("An error occurred while fetching flights");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlights();
+  }, []);
+
+  const filteredFlights = flights.filter(
+    (flight) =>
+      flight.flight.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      flight.route.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getRiskColor = (risk: string) => {
+    switch (risk.toLowerCase()) {
+      case "low":
+        return "text-white dark:text-green-100 bg-green-500 dark:bg-green-600";
+      case "medium":
+        return "text-white dark:text-yellow-100 bg-yellow-500 dark:bg-yellow-600";
+      case "high":
+        return "text-white dark:text-red-100 bg-red-500 dark:bg-red-600";
+      default:
+        return "text-muted-foreground bg-muted";
     }
   };
 
-  const testExampleGet = async () => {
-    setExampleGetResponse({ loading: true });
-    try {
-      const response = await fetch("/api/example?query=test");
-      const data = await response.json();
-      setExampleGetResponse({ data, loading: false });
-    } catch (error) {
-      setExampleGetResponse({
-        error: error instanceof Error ? error.message : "Unknown error",
-        loading: false,
-      });
+  const getTatStatusColor = (status: TATStatus) => {
+    switch (status) {
+      case TATStatus.OnTime:
+        return "text-green-600 dark:text-green-400";
+      case TATStatus.Delayed:
+        return "text-red-600 dark:text-red-400";
+      case TATStatus.Cancelled:
+        return "text-gray-600 dark:text-gray-400";
+      default:
+        return "text-muted-foreground";
     }
   };
 
-  const testExamplePost = async () => {
-    setExamplePostResponse({ loading: true });
-    try {
-      const response = await fetch("/api/example", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: "Test User",
-          message: "Hello from the frontend!",
-        }),
-      });
-      const data = await response.json();
-      setExamplePostResponse({ data, loading: false });
-    } catch (error) {
-      setExamplePostResponse({
-        error: error instanceof Error ? error.message : "Unknown error",
-        loading: false,
-      });
+  const getCertColor = (cert: CertificateStatus) => {
+    switch (cert) {
+      case CertificateStatus.Issued:
+        return "text-green-600 dark:text-green-400";
+      case CertificateStatus.Pending:
+        return "text-yellow-600 dark:text-yellow-400";
+      default:
+        return "text-muted-foreground";
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-16">
-        <div className="mx-auto max-w-4xl">
-          {/* Header */}
-          <div className="mb-12 text-center">
-            <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">
-              API Testing Dashboard
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Test your API endpoints with interactive buttons
-            </p>
+      {/* Navigation Bar */}
+      <Navbar
+        showSearch
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
+
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="rounded-2xl bg-card shadow-lg overflow-hidden">
+          {/* Table Header */}
+          <div className="bg-linear-to-r from-muted/80 to-muted/40 px-8 py-6">
+            <h2 className="text-xl font-semibold">Flights</h2>
           </div>
 
-          {/* API Test Cards */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Health Check */}
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <div className="mb-4">
-                <h2 className="mb-2 text-xl font-semibold">Health Check</h2>
-                <p className="text-sm text-muted-foreground">
-                  GET /api/health
-                </p>
-              </div>
-              <Button
-                onClick={testHealth}
-                disabled={healthResponse.loading}
-                className="w-full"
-              >
-                {healthResponse.loading ? "Testing..." : "Test Health"}
-              </Button>
-              {healthResponse.data !== undefined && (
-                <div className="mt-4 rounded-md bg-muted p-3">
-                  <pre className="text-xs overflow-auto">
-                    {JSON.stringify(healthResponse.data, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {healthResponse.error && (
-                <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  Error: {healthResponse.error}
-                </div>
-              )}
-            </div>
-
-            {/* Example GET */}
-            <div className="rounded-lg border bg-card p-6 shadow-sm">
-              <div className="mb-4">
-                <h2 className="mb-2 text-xl font-semibold">Example GET</h2>
-                <p className="text-sm text-muted-foreground">
-                  GET /api/example?query=test
-                </p>
-              </div>
-              <Button
-                onClick={testExampleGet}
-                disabled={exampleGetResponse.loading}
-                variant="outline"
-                className="w-full"
-              >
-                {exampleGetResponse.loading ? "Testing..." : "Test GET"}
-              </Button>
-              {exampleGetResponse.data !== undefined && (
-                <div className="mt-4 rounded-md bg-muted p-3">
-                  <pre className="text-xs overflow-auto">
-                    {JSON.stringify(exampleGetResponse.data, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {exampleGetResponse.error && (
-                <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  Error: {exampleGetResponse.error}
-                </div>
-              )}
-            </div>
-
-            {/* Example POST */}
-            <div className="rounded-lg border bg-card p-6 shadow-sm md:col-span-2">
-              <div className="mb-4">
-                <h2 className="mb-2 text-xl font-semibold">Example POST</h2>
-                <p className="text-sm text-muted-foreground">
-                  POST /api/example
-                </p>
-              </div>
-              <Button
-                onClick={testExamplePost}
-                disabled={examplePostResponse.loading}
-                variant="secondary"
-                className="w-full"
-              >
-                {examplePostResponse.loading ? "Testing..." : "Test POST"}
-              </Button>
-              {examplePostResponse.data !== undefined && (
-                <div className="mt-4 rounded-md bg-muted p-3">
-                  <pre className="text-xs overflow-auto">
-                    {JSON.stringify(examplePostResponse.data, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {examplePostResponse.error && (
-                <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                  Error: {examplePostResponse.error}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Info Section */}
-          <div className="mt-12 rounded-lg border bg-muted/50 p-6">
-            <h3 className="mb-2 font-semibold">About</h3>
-            <p className="text-sm text-muted-foreground">
-              This dashboard allows you to test your API endpoints. Each button
-              sends a request to the corresponding endpoint and displays the
-              response below. All endpoints are located in the{" "}
-              <code className="rounded bg-background px-1.5 py-0.5 text-xs">
-                app/api
-              </code>{" "}
-              directory.
-            </p>
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-primary/10 dark:bg-primary/20">
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    Flight
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    Route
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    STA
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    STD
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    Progress
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    TAT Status
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    RISK
+                  </th>
+                  <th className="px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-foreground">
+                    Certificate
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-8 py-12 text-center text-sm text-muted-foreground"
+                    >
+                      Loading flights...
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-8 py-12 text-center text-sm text-red-600 dark:text-red-400"
+                    >
+                      {error}
+                    </td>
+                  </tr>
+                ) : filteredFlights.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-8 py-12 text-center text-sm text-muted-foreground"
+                    >
+                      No flights found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredFlights.map((flight, index) => (
+                    <tr
+                      key={index}
+                      className="transition-all hover:bg-muted/60 even:bg-muted/40 odd:bg-card border-b border-border/10 last:border-b-0 cursor-pointer"
+                      onClick={() => router.push(`/flights/${flight.flight}`)}
+                    >
+                      <td className="px-8 py-5 text-sm font-semibold">
+                        {flight.flight}
+                      </td>
+                      <td className="px-8 py-5 text-sm">{flight.route}</td>
+                      <td className="px-8 py-5 text-sm font-medium">{formatTime(flight.sta)}</td>
+                      <td className="px-8 py-5 text-sm font-medium">{formatTime(flight.std)}</td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="h-2.5 w-32 overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full bg-linear-to-r from-primary to-primary/80 transition-all rounded-full"
+                              style={{ width: `${flight.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-muted-foreground min-w-12">
+                            {flight.progress}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span
+                          className={`text-sm font-semibold capitalize ${getTatStatusColor(
+                            flight.tatStatus
+                          )}`}
+                        >
+                          {flight.tatStatus}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getRiskColor(
+                            flight.risk
+                          )}`}
+                        >
+                          {flight.risk}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span
+                          className={`text-sm font-semibold ${getCertColor(
+                            flight.cert
+                          )}`}
+                        >
+                          {flight.cert}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

@@ -47,8 +47,19 @@
   --color-ring: 212.7 26.8% 83.9%;
 }
 
+html {
+  /* Prevent flash by setting a dark background by default, will be overridden by theme */
+  background-color: hsl(222.2 84% 4.9%);
+}
+
+html:not(.dark) {
+  background-color: hsl(0 0% 100%);
+}
+
 body {
   background: hsl(var(--color-background));
   color: hsl(var(--color-foreground));
   font-family: Arial, Helvetica, sans-serif;
+  /* Prevent flash during initial load */
+  transition: background-color 0s;
 }

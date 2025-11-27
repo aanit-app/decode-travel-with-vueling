@@ -49,6 +49,34 @@ export default function FlightDetailPage({
   const [flight, setFlight] = useState<Flight | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Initialize showFiltered from localStorage, default to false
+  const [showFiltered, setShowFiltered] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("turnaround-filter-show-filtered");
+      return saved === "true";
+    }
+    return false;
+  });
+
+  // Pre-defined selection of process IDs to show when filtered
+  const filteredProcessIds = new Set([
+    "chocks-on",
+    "gpu-connected",
+    "open-pax-door",
+    "refueling-start",
+    "refueling-complete",
+    "cleaning-complete",
+    "catering-delivered",
+    "last-passenger-boarded",
+  ]);
+
+  // Save filter state to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("turnaround-filter-show-filtered", String(showFiltered));
+    }
+  }, [showFiltered]);
 
   useEffect(() => {
     const fetchFlight = async () => {
@@ -168,11 +196,18 @@ export default function FlightDetailPage({
   const depTime = dateToMinutes(flight.std);
 
   // Get turnaround processes from the separate data file
-  const turnaroundProcesses = getTurnaroundProcesses(
+  const allTurnaroundProcesses = getTurnaroundProcesses(
     arrTime,
     depTime,
     flight.progress
   );
+
+  // Filter processes based on toggle state
+  const turnaroundProcesses = showFiltered
+    ? allTurnaroundProcesses.filter((process) =>
+        filteredProcessIds.has(process.id)
+      )
+    : allTurnaroundProcesses;
   
   // Format Date to time string for display
   const formatTime = (date: Date): string => {
@@ -201,7 +236,7 @@ export default function FlightDetailPage({
 
         <div className="rounded-2xl bg-card shadow-lg overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-8 py-6 border-b border-border/10">
+          <div className="bg-linear-to-r from-primary/10 to-primary/5 px-8 py-6 border-b border-border/10">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-3xl font-bold mb-2">{flight.flight}</h2>
@@ -292,7 +327,7 @@ export default function FlightDetailPage({
                 <div className="flex items-center gap-4">
                   <div className="flex-1 h-3 overflow-hidden rounded-full bg-muted">
                     <div
-                      className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all rounded-full"
+                      className="h-full bg-linear-to-r from-primary to-primary/80 transition-all rounded-full"
                       style={{ width: `${flight.progress}%` }}
                     />
                   </div>
@@ -306,11 +341,20 @@ export default function FlightDetailPage({
 
           {/* Turnaround Process Flow */}
           <div className="mt-8">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold">Turnaround Process</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Timeline: {startTimeStr} → {endTimeStr}
-              </p>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold">Turnaround Process</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Timeline: {startTimeStr} → {endTimeStr}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFiltered(!showFiltered)}
+              >
+                {showFiltered ? "Show All" : "Show Key Processes"}
+              </Button>
             </div>
             <TurnaroundFlow
               processes={turnaroundProcesses}

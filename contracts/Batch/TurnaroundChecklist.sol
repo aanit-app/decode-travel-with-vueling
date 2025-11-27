@@ -5,6 +5,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./TurnaroundTypes.sol";
 import "./TurnaroundTemplates.sol";
 
+interface ITurnaroundBadge {
+    function mintBadge(
+        address to,
+        uint256 turnaroundId,
+        uint8 actorId
+    ) external;
+}
+
 contract TurnaroundChecklist is AccessControl {
     using TurnaroundTemplates for Task[];
 
@@ -60,19 +68,19 @@ contract TurnaroundChecklist is AccessControl {
         _grantRole(OPS_ROLE, opsAdmin);
 
         actorWallets[Actor.GroundHandling] = groundHandling;
-        actorWallets[Actor.Cleaning]       = cleaning;
-        actorWallets[Actor.Fuel]           = fuel;
-        actorWallets[Actor.Catering]       = catering;
-        actorWallets[Actor.FlightCrew]     = flightCrew;
-        actorWallets[Actor.Gate]           = gate;
+        actorWallets[Actor.Cleaning] = cleaning;
+        actorWallets[Actor.Fuel] = fuel;
+        actorWallets[Actor.Catering] = catering;
+        actorWallets[Actor.FlightCrew] = flightCrew;
+        actorWallets[Actor.Gate] = gate;
     }
 
     // ---------- CONFIGURACIÓN DE ACTORES ----------
 
-    function updateActorWallet(Actor actor, address wallet)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function updateActorWallet(
+        Actor actor,
+        address wallet
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(wallet != address(0), "Zero address");
         actorWallets[actor] = wallet;
         emit ActorWalletUpdated(actor, wallet);
@@ -103,7 +111,7 @@ contract TurnaroundChecklist is AccessControl {
         t.createdAt = block.timestamp;
 
         Task[] storage tasks = _tasksByTurnaround[id];
-        tasks.initStandardTasks(scheduledArrival, scheduledDeparture);
+        tasks.initStandardTasks(scheduledArrival);
         t.totalTasks = tasks.length;
 
         emit TurnaroundCreated(
@@ -119,16 +127,16 @@ contract TurnaroundChecklist is AccessControl {
     }
 
     /// @notice Devuelve todas las tareas de un turnaround
-    function getTasks(uint256 turnaroundId)
-        external
-        view
-        returns (Task[] memory)
-    {
+    function getTasks(
+        uint256 turnaroundId
+    ) external view returns (Task[] memory) {
         return _tasksByTurnaround[turnaroundId];
     }
 
     /// @notice Devuelve KPIs básicos del turnaround
-    function getTurnaroundKPIs(uint256 turnaroundId)
+    function getTurnaroundKPIs(
+        uint256 turnaroundId
+    )
         external
         view
         returns (
@@ -170,11 +178,10 @@ contract TurnaroundChecklist is AccessControl {
         _;
     }
 
-    /// @notice Marca una tarea como completada (por el actor responsable o por OPS)
-    function markTaskCompleted(uint256 turnaroundId, uint256 taskIndex)
-        external
-        onlyActorOrOps(turnaroundId, taskIndex)
-    {
+    function markTaskCompleted(
+        uint256 turnaroundId,
+        uint256 taskIndex
+    ) external onlyActorOrOps(turnaroundId, taskIndex) {
         Turnaround storage t = turnarounds[turnaroundId];
         require(!t.certified, "Turnaround already certified");
 
@@ -185,12 +192,25 @@ contract TurnaroundChecklist is AccessControl {
         task.completedAt = nowTs;
 
         if (nowTs <= task.deadline) {
+            // Completada en tiempo
             task.status = TaskStatus.CompletedOnTime;
             t.onTimeTasks += 1;
+
+            // No hubo retraso real: limpiamos una posible justificación previa
+            task.justifiedDelay = false;
+            task.delayReason = "";
         } else {
+            // Completada tarde
             task.status = TaskStatus.CompletedLate;
-            t.lateTasks += 1;
-            t.slaBreached = true;
+
+            if (task.justifiedDelay) {
+                // Retraso ya marcado como justificado (pre-justificación):
+                // no cuenta para lateTasks ni SLA
+            } else {
+                // Retraso no justificado
+                t.lateTasks += 1;
+                t.slaBreached = true;
+            }
         }
 
         // Actualizamos primer/último timestamp para duración
@@ -213,10 +233,9 @@ contract TurnaroundChecklist is AccessControl {
     }
 
     /// @notice Cierra el turnaround, verifica que todas las tareas estén completadas y genera certificado
-    function finalizeTurnaround(uint256 turnaroundId)
-        external
-        onlyRole(OPS_ROLE)
-    {
+    function finalizeTurnaround(
+        uint256 turnaroundId
+    ) external onlyRole(OPS_ROLE) {
         Turnaround storage t = turnarounds[turnaroundId];
         require(!t.certified, "Already certified");
 
@@ -224,13 +243,38 @@ contract TurnaroundChecklist is AccessControl {
         uint256 len = tasks.length;
         require(len > 0, "No tasks");
 
+        // Contadores por actor (0..5)
+        uint8[6] memory actorTaskCount;
+        uint8[6] memory actorLateCount;
+
         for (uint256 i = 0; i < len; i++) {
-            TaskStatus status = tasks[i].status;
+            Task storage task = tasks[i];
+            TaskStatus status = task.status;
+
+            // Si la tarea es obligatoria, debe estar completada
+            if (status == TaskStatus.Pending) {
+                require(
+                    !task.mandatory,
+                    "All mandatory tasks must be completed"
+                );
+                // si no es obligatoria y sigue pendiente, simplemente la ignoramos
+                continue;
+            }
+
+            // En este punto la tarea está completada (en tiempo o tarde)
             require(
                 status == TaskStatus.CompletedOnTime ||
                     status == TaskStatus.CompletedLate,
-                "All tasks must be completed"
+                "Invalid task status"
             );
+
+            uint8 actorId = uint8(task.actor);
+            actorTaskCount[actorId] += 1;
+
+            // Solo retrasos no justificados cuentan contra el actor
+            if (status == TaskStatus.CompletedLate && !task.justifiedDelay) {
+                actorLateCount[actorId] += 1;
+            }
         }
 
         t.certified = true;
@@ -269,5 +313,76 @@ contract TurnaroundChecklist is AccessControl {
             durationSeconds,
             t.certificateHash
         );
+
+        // --------- MINT DE BADGES POR ACTOR ---------
+        if (address(badgeContract) != address(0)) {
+            for (uint8 a = 0; a < 6; a++) {
+                if (actorTaskCount[a] > 0 && actorLateCount[a] == 0) {
+                    address wallet = actorWallets[Actor(a)];
+                    if (wallet != address(0)) {
+                        badgeContract.mintBadge(wallet, turnaroundId, a);
+                    }
+                }
+            }
+        }
+    }
+
+    /// @notice Marca una tarea como obligatoria o no para cerrar el turnaround
+    function setTaskMandatory(
+        uint256 turnaroundId,
+        uint256 taskIndex,
+        bool mandatory
+    ) external onlyRole(OPS_ROLE) {
+        Task storage task = _tasksByTurnaround[turnaroundId][taskIndex];
+        task.mandatory = mandatory;
+        emit TaskMandatoryUpdated(turnaroundId, taskIndex, mandatory);
+    }
+
+    /// @notice Marca una tarea como justificada por retraso, tanto antes (Pending) como después (CompletedLate).
+    ///         - Si está Pending: no toca KPIs, solo marca que, si llega tarde, estará justificado.
+    ///         - Si está CompletedLate: ajusta KPIs para que no cuente como retraso injustificado.
+    function justifyDelayedTask(
+        uint256 turnaroundId,
+        uint256 taskIndex,
+        string calldata reason
+    ) external onlyActorOrOps(turnaroundId, taskIndex) {
+        Turnaround storage t = turnarounds[turnaroundId];
+        require(!t.certified, "Turnaround already certified");
+
+        Task storage task = _tasksByTurnaround[turnaroundId][taskIndex];
+
+        // Solo tiene sentido justificar si está pendiente o ya se completó tarde
+        require(
+            task.status == TaskStatus.Pending ||
+                task.status == TaskStatus.CompletedLate,
+            "Can only justify pending or late tasks"
+        );
+
+        // Si ya estaba justificada y quieres permitir cambiar el motivo,
+        // se podría quitar este require. Ahora mismo lo bloqueamos:
+        require(!task.justifiedDelay, "Already justified");
+
+        // Si ya se había contado como retraso injustificado, ajustamos KPIs
+        if (task.status == TaskStatus.CompletedLate) {
+            if (t.lateTasks > 0) {
+                t.lateTasks -= 1;
+            }
+            if (t.lateTasks == 0) {
+                t.slaBreached = false;
+            }
+        }
+
+        task.justifiedDelay = true;
+        task.delayReason = reason; // NEW: persisted on-chain
+
+        emit TaskDelayJustified(turnaroundId, taskIndex, reason);
+    }
+
+    ITurnaroundBadge public badgeContract;
+
+    function setBadgeContract(
+        address _badge
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        badgeContract = ITurnaroundBadge(_badge);
     }
 }

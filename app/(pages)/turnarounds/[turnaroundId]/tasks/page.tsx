@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   Table,
   TableHeader,
   TableColumn,
@@ -20,7 +19,11 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { useWeb3, type Task as ContractTask, type TurnaroundState } from "../../../../contexts/Web3Context";
+import {
+  useWeb3,
+  type Task as ContractTask,
+  type TurnaroundState,
+} from "../../../../contexts/Web3Context";
 import { TURNAROUND_TASKS, Team } from "../../../../lib/tasks";
 import { H1, H2, Body } from "../../../../components/typography";
 import { CheckCircle2, Loader2 } from "lucide-react";
@@ -37,7 +40,14 @@ type Turnaround = {
 
 export default function TurnaroundTasksPage() {
   const { user, loading: authLoading } = useAuth();
-  const { getTasks, getTurnaroundState, signEIP712TaskCompletion, markTaskCompleted, finalizeTurnaround, ensureWalletIsActive } = useWeb3();
+  const {
+    getTasks,
+    getTurnaroundState,
+    signEIP712TaskCompletion,
+    markTaskCompleted,
+    finalizeTurnaround,
+    ensureWalletIsActive,
+  } = useWeb3();
   const router = useRouter();
   const params = useParams();
   const turnaroundId = params?.turnaroundId as string;
@@ -47,8 +57,11 @@ export default function TurnaroundTasksPage() {
   const [loading, setLoading] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState<Set<number>>(new Set());
   const [loadingContractTasks, setLoadingContractTasks] = useState(false);
-  const [contractTasks, setContractTasks] = useState<Map<number, ContractTask>>(new Map());
-  const [turnaroundState, setTurnaroundState] = useState<TurnaroundState | null>(null);
+  const [contractTasks, setContractTasks] = useState<Map<number, ContractTask>>(
+    new Map()
+  );
+  const [turnaroundState, setTurnaroundState] =
+    useState<TurnaroundState | null>(null);
   const [loadingTurnaroundState, setLoadingTurnaroundState] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -111,13 +124,13 @@ export default function TurnaroundTasksPage() {
       try {
         setLoadingContractTasks(true);
         const tasks = await getTasks(contractAddress, chainId);
-        
+
         // Create a map keyed by templateId for easy lookup
         const tasksMap = new Map<number, ContractTask>();
         tasks.forEach((task) => {
           tasksMap.set(task.templateId, task);
         });
-        
+
         setContractTasks(tasksMap);
       } catch (err: any) {
         console.error("Error fetching contract tasks:", err);
@@ -154,7 +167,9 @@ export default function TurnaroundTasksPage() {
 
   const handleMarkTaskCompleted = async (taskId: number) => {
     if (!contractAddress) {
-      setError("Contract address is required. Please ensure the turnaround has a deployed contract.");
+      setError(
+        "Contract address is required. Please ensure the turnaround has a deployed contract."
+      );
       return;
     }
 
@@ -164,7 +179,9 @@ export default function TurnaroundTasksPage() {
     }
 
     if (typeof window.ethereum === "undefined") {
-      setError("MetaMask is not installed. Please install MetaMask to use this feature.");
+      setError(
+        "MetaMask is not installed. Please install MetaMask to use this feature."
+      );
       return;
     }
 
@@ -198,27 +215,31 @@ export default function TurnaroundTasksPage() {
 
       // Submit task completion signature to backend
       const token = await getToken();
-      const submitResponse = await fetch("/api/contracts/submit-task-completion", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          turnaroundId,
-          contractAddress,
-          chainId,
-          taskId,
-          signerAddress: selectedWallet,
-          signature: eip712Signature,
-          message: eip712Message,
-          timestamp,
-        }),
-      });
+      const submitResponse = await fetch(
+        "/api/contracts/submit-task-completion",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            turnaroundId,
+            contractAddress,
+            chainId,
+            taskId,
+            signerAddress: selectedWallet,
+            signature: eip712Signature,
+            message: eip712Message,
+            timestamp,
+          }),
+        }
+      );
 
       const submitData = await submitResponse.json();
 
       if (!submitResponse.ok) {
+        console.error("API Error:", submitData);
         throw new Error(submitData.error || "Failed to submit task completion");
       }
 
@@ -262,7 +283,9 @@ export default function TurnaroundTasksPage() {
     }
   };
 
-  const getTeamColor = (team: Team): "default" | "primary" | "success" | "warning" | "danger" => {
+  const getTeamColor = (
+    team: Team
+  ): "default" | "primary" | "success" | "warning" | "danger" => {
     switch (team) {
       case Team.GROUND_HANDLING_PROVIDER:
         return "primary";
@@ -292,7 +315,9 @@ export default function TurnaroundTasksPage() {
     return contractTasks.get(taskId) || null;
   };
 
-  const getStatusColor = (status: string): "default" | "primary" | "success" | "warning" | "danger" => {
+  const getStatusColor = (
+    status: string
+  ): "default" | "primary" | "success" | "warning" | "danger" => {
     switch (status) {
       case "completed":
         return "success";
@@ -312,7 +337,9 @@ export default function TurnaroundTasksPage() {
 
   const handleFinalizeTurnaround = async () => {
     if (!contractAddress) {
-      setError("Contract address is required. Please ensure the turnaround has a deployed contract.");
+      setError(
+        "Contract address is required. Please ensure the turnaround has a deployed contract."
+      );
       return;
     }
 
@@ -322,7 +349,9 @@ export default function TurnaroundTasksPage() {
     }
 
     if (typeof window.ethereum === "undefined") {
-      setError("MetaMask is not installed. Please install MetaMask to use this feature.");
+      setError(
+        "MetaMask is not installed. Please install MetaMask to use this feature."
+      );
       return;
     }
 
@@ -334,8 +363,12 @@ export default function TurnaroundTasksPage() {
       // Ensure the selected wallet is active in MetaMask
       await ensureWalletIsActive(selectedWallet);
 
-      const result = await finalizeTurnaround(contractAddress, chainId, selectedWallet);
-      
+      const result = await finalizeTurnaround(
+        contractAddress,
+        chainId,
+        selectedWallet
+      );
+
       setSuccess(
         `Turnaround finalized successfully! Transaction: ${result.transactionHash}`
       );
@@ -358,7 +391,9 @@ export default function TurnaroundTasksPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred while finalizing the turnaround");
+      setError(
+        err.message || "An error occurred while finalizing the turnaround"
+      );
     } finally {
       setFinalizing(false);
     }
@@ -392,9 +427,7 @@ export default function TurnaroundTasksPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 mt-8">
-        <H1 className="mb-6">
-          Turnaround Tasks - {turnaround.flightNumber}
-        </H1>
+        <H1 className="mb-6">Turnaround Tasks - {turnaround.flightNumber}</H1>
 
         {/* Configuration Card */}
         <Card className="mb-6">
@@ -464,18 +497,23 @@ export default function TurnaroundTasksPage() {
                 <div>
                   <H2 className="mb-2">Turnaround Status</H2>
                   <div className="space-y-1">
-                    <Body>
+                    <div className="text-base text-gray-700 dark:text-gray-300 leading-normal">
                       Status:{" "}
                       <Chip
                         size="sm"
-                        color={turnaroundState.certified ? "success" : "warning"}
+                        color={
+                          turnaroundState.certified ? "success" : "warning"
+                        }
                         variant="flat"
                       >
-                        {turnaroundState.certified ? "Certified" : "In Progress"}
+                        {turnaroundState.certified
+                          ? "Certified"
+                          : "In Progress"}
                       </Chip>
-                    </Body>
+                    </div>
                     <Body className="text-sm text-gray-600 dark:text-gray-400">
-                      Tasks: {turnaroundState.onTimeTasks} on time, {turnaroundState.lateTasks} late
+                      Tasks: {turnaroundState.onTimeTasks} on time,{" "}
+                      {turnaroundState.lateTasks} late
                       {turnaroundState.slaBreached && (
                         <span className="text-danger ml-2">(SLA Breached)</span>
                       )}
@@ -491,7 +529,9 @@ export default function TurnaroundTasksPage() {
                     color="success"
                     size="lg"
                     onPress={handleFinalizeTurnaround}
-                    isDisabled={!contractAddress || !selectedWallet || finalizing}
+                    isDisabled={
+                      !contractAddress || !selectedWallet || finalizing
+                    }
                     isLoading={finalizing}
                   >
                     {finalizing ? "Finalizing..." : "Finalize Turnaround"}
@@ -503,116 +543,115 @@ export default function TurnaroundTasksPage() {
         )}
 
         {/* Tasks Table */}
-        <Card>
-          <CardHeader>
-            <H2>All Tasks ({TURNAROUND_TASKS.length})</H2>
-          </CardHeader>
-          <CardBody>
-            <Table aria-label="Turnaround tasks table">
-              <TableHeader>
-                <TableColumn>ID</TableColumn>
-                <TableColumn>TASK</TableColumn>
-                <TableColumn>TEAM</TableColumn>
-                <TableColumn>STATUS</TableColumn>
-                <TableColumn>DURATION</TableColumn>
-                <TableColumn>DEPENDENCIES</TableColumn>
-                <TableColumn>ACTION</TableColumn>
-              </TableHeader>
-              <TableBody>
-                {loadingContractTasks && contractTasks.size === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center">
-                      <Spinner size="sm" />
-                      <Body className="ml-2">Loading task status from contract...</Body>
+        <H2>Tasks ({TURNAROUND_TASKS.length})</H2>
+        <Table aria-label="Turnaround tasks table">
+          <TableHeader>
+            <TableColumn>ID</TableColumn>
+            <TableColumn>TASK</TableColumn>
+            <TableColumn>TEAM</TableColumn>
+            <TableColumn>STATUS</TableColumn>
+            <TableColumn>DURATION</TableColumn>
+            <TableColumn>DEPENDENCIES</TableColumn>
+            <TableColumn>ACTION</TableColumn>
+          </TableHeader>
+          <TableBody>
+            {loadingContractTasks && contractTasks.size === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center">
+                  <Spinner size="sm" />
+                  <Body className="ml-2">
+                    Loading task status from contract...
+                  </Body>
+                </TableCell>
+              </TableRow>
+            ) : (
+              TURNAROUND_TASKS.map((task) => {
+                const contractTask = getTaskStatus(task.id);
+                const isCompleted = contractTask?.status === "completed";
+                const taskStatus = contractTask?.status || "pending";
+
+                return (
+                  <TableRow key={task.id}>
+                    <TableCell>
+                      <Chip size="sm" variant="flat">
+                        {task.id}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      <Body className="font-semibold">{task.title}</Body>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="sm"
+                        color={getTeamColor(task.team)}
+                        variant="flat"
+                      >
+                        {formatTeamName(task.team)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="sm"
+                        color={getStatusColor(taskStatus)}
+                        variant="flat"
+                      >
+                        {formatStatus(taskStatus)}
+                      </Chip>
+                      {contractTask?.completedAt &&
+                        contractTask.completedAt > 0 && (
+                          <Body className="text-xs text-gray-500 mt-1">
+                            Completed:{" "}
+                            {new Date(
+                              contractTask.completedAt * 1000
+                            ).toLocaleString()}
+                          </Body>
+                        )}
+                    </TableCell>
+                    <TableCell>
+                      <Body>{task.duration} min</Body>
+                    </TableCell>
+                    <TableCell>
+                      {task.dependencies && task.dependencies.length > 0 ? (
+                        <Body className="text-sm text-gray-500">
+                          {task.dependencies.join(", ")}
+                        </Body>
+                      ) : (
+                        <Body className="text-sm text-gray-400">None</Body>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        color="primary"
+                        variant="flat"
+                        onPress={() => handleMarkTaskCompleted(task.id)}
+                        isDisabled={
+                          !contractAddress ||
+                          !selectedWallet ||
+                          loadingTasks.has(task.id) ||
+                          isCompleted
+                        }
+                        isLoading={loadingTasks.has(task.id)}
+                        startContent={
+                          loadingTasks.has(task.id) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : isCompleted ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4" />
+                          )
+                        }
+                      >
+                        {isCompleted ? "Completed" : "Mark Complete"}
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  TURNAROUND_TASKS.map((task) => {
-                    const contractTask = getTaskStatus(task.id);
-                    const isCompleted = contractTask?.status === "completed";
-                    const taskStatus = contractTask?.status || "pending";
-
-                    return (
-                      <TableRow key={task.id}>
-                        <TableCell>
-                          <Chip size="sm" variant="flat">
-                            {task.id}
-                          </Chip>
-                        </TableCell>
-                        <TableCell>
-                          <Body className="font-semibold">{task.title}</Body>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            size="sm"
-                            color={getTeamColor(task.team)}
-                            variant="flat"
-                          >
-                            {formatTeamName(task.team)}
-                          </Chip>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            size="sm"
-                            color={getStatusColor(taskStatus)}
-                            variant="flat"
-                          >
-                            {formatStatus(taskStatus)}
-                          </Chip>
-                          {contractTask?.completedAt && contractTask.completedAt > 0 && (
-                            <Body className="text-xs text-gray-500 mt-1">
-                              Completed: {new Date(contractTask.completedAt * 1000).toLocaleString()}
-                            </Body>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Body>{task.duration} min</Body>
-                        </TableCell>
-                        <TableCell>
-                          {task.dependencies && task.dependencies.length > 0 ? (
-                            <Body className="text-sm text-gray-500">
-                              {task.dependencies.join(", ")}
-                            </Body>
-                          ) : (
-                            <Body className="text-sm text-gray-400">None</Body>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            color="primary"
-                            variant="flat"
-                            onPress={() => handleMarkTaskCompleted(task.id)}
-                            isDisabled={
-                              !contractAddress ||
-                              !selectedWallet ||
-                              loadingTasks.has(task.id) ||
-                              isCompleted
-                            }
-                            isLoading={loadingTasks.has(task.id)}
-                            startContent={
-                              loadingTasks.has(task.id) ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : isCompleted ? (
-                                <CheckCircle2 className="w-4 h-4" />
-                              ) : (
-                                <CheckCircle2 className="w-4 h-4" />
-                              )
-                            }
-                          >
-                            {isCompleted ? "Completed" : "Mark Complete"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </CardBody>
-        </Card>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
 }
-

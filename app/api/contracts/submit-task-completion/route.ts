@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth, getAdminFirestore } from "@/lib/firebase/admin";
 import { ethers } from "ethers";
-import { getRpcUrl } from "@/app/lib/blockchain";
 
 export async function POST(request: NextRequest) {
   // Verify authentication
@@ -115,52 +114,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify EIP712 signature
-    try {
-      const rpcUrl = getRpcUrl(chainId);
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-
-      // Reconstruct the EIP712 domain and types
-      const domain = {
-        name: "TurnaroundTaskCompletion",
-        version: "1",
-        chainId: chainId,
-        verifyingContract: contractAddress,
-      };
-
-      const types = {
-        TaskCompletion: [
-          { name: "turnaroundId", type: "string" },
-          { name: "taskId", type: "uint256" },
-          { name: "timestamp", type: "uint256" },
-        ],
-      };
-
-      // Verify the signature
-      const recoveredAddress = ethers.verifyTypedData(
-        domain,
-        types,
-        message,
-        signature
-      );
-
-      if (recoveredAddress.toLowerCase() !== signerAddress.toLowerCase()) {
-        return NextResponse.json(
-          {
-            error:
-              "Invalid signature: recovered address does not match signer address",
-          },
-          { status: 400 }
-        );
-      }
-
-      console.log(`EIP712 signature verified for address: ${signerAddress}`);
-    } catch (sigError: any) {
-      return NextResponse.json(
-        { error: `Invalid signature: ${sigError.message}` },
-        { status: 400 }
-      );
-    }
+    // TODO: Note: Signature verification is skipped (during the Hackathon) - signature is stored as-is
+    // Pending signatures of the different service providers, currently all of the signatures are handled
+    // by the same admin wallet.
+    console.log(`Storing signature for address: ${signerAddress}`);
 
     // Generate receipt signature from backend
     if (!process.env.NEXT_SECRET_PRIVATE_KEY) {

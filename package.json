@@ -1,39 +1,63 @@
 {
-  "name": "my-app",
+  "name": "nextjs",
   "version": "0.1.0",
   "private": true,
+  "author": {
+    "name": "Daniel",
+    "email": "daniel@aanit.app"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "test": "vitest"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@radix-ui/react-tooltip": "^1.2.8",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "@hello-pangea/dnd": "^17.0.0",
+    "@heroui/react": "^2.8.5",
+    "@heroui/system": "^2.4.23",
+    "@heroui/theme": "^2.4.23",
+    "@react-aria/ssr": "3.9.4",
+    "@react-aria/visually-hidden": "3.8.12",
+    "@vercel/edge-config": "^1.4.3",
+    "clsx": "2.1.1",
     "ethers": "^6.15.0",
-    "firebase": "^12.6.0",
+    "firebase": "^11.10.0",
     "firebase-admin": "^13.6.0",
-    "lucide-react": "^0.555.0",
-    "next": "16.0.4",
+    "lucide-react": "^0.456.0",
+    "nanoid": "^5.1.6",
+    "next": "16.0.1",
+    "next-themes": "^0.4.6",
     "qrcode": "^1.5.4",
+    "qrcode.react": "^4.2.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "tailwind-merge": "^3.4.0",
-    "web3": "^4.16.0",
+    "react-map-gl": "^7.1.9",
+    "tailwind-merge": "^2.6.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.4",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/node": "^22.19.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/three": "^0.181.0",
+    "autoprefixer": "^10.4.22",
+    "drizzle-kit": "^0.31.7",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "16.0.1",
+    "eslint-plugin-storybook": "^9.1.16",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@10.23.0",
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.2",
+      "@types/react-dom": "19.2.2"
+    }
   }
 }

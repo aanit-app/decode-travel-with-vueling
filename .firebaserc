@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "vueling-turnaround",
+    "prod": "vueling-turnaround",
+    "dev": "vueling-turnaround"
+  }
+}

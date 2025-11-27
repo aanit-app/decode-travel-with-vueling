@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Turnarounds collection - allow authenticated users to read and write
+    match /turnarounds/{turnaroundId} {
+      // Allow read access to authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow write access only to authenticated users
+      // You can restrict this further by checking user roles/custom claims if needed
+      allow write: if request.auth != null;
+      
+      // Alternative: Only allow admins to write
+      // allow write: if request.auth != null && 
+      //              request.auth.token.isAdmin == true;
+    }
+    
+    // Flights collection - allow authenticated users to read and write
+    match /flights/{flightId} {
+      // Allow read access to authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow write access only to authenticated users
+      allow write: if request.auth != null;
+      
+      // Alternative: Only allow admins to write
+      // allow write: if request.auth != null && 
+      //              request.auth.token.isAdmin == true;
+    }
+    
+    // Providers collection - allow authenticated users to read and write
+    match /providers/{providerId} {
+      // Allow read access to authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow write access only to authenticated users
+      allow write: if request.auth != null;
+      
+      // Alternative: Only allow admins to write
+      // allow write: if request.auth != null && 
+      //              request.auth.token.isAdmin == true;
+    }
+    
+    // Default deny rule for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

@@ -236,7 +236,7 @@ export function CreateTurnaroundModal({
     // Get airport code (should be the same - arrival airport of from flight = departure airport of to flight)
     const airport = flightFrom.arrivalAirport || flightTo.departureAirport;
 
-    // Generate turnaround ID: AIRPORTCODE_YEAR_MONTH_DAY_HH_MM
+    // Generate turnaround ID: FROMFLIGHT_TOFLIGHT_AIRPORTCODE_YEAR_MONTH_DAY_HH_MM
     const staDate = flightFrom.arrivalTime!;
     const stdDate = flightTo.departureTime!;
     const year = staDate.getFullYear();
@@ -244,7 +244,7 @@ export function CreateTurnaroundModal({
     const day = String(staDate.getDate()).padStart(2, "0");
     const hours = String(staDate.getHours()).padStart(2, "0");
     const minutes = String(staDate.getMinutes()).padStart(2, "0");
-    const turnaroundId = `${airport}_${year}_${month}_${day}_${hours}_${minutes}`;
+    const turnaroundId = `${flightFrom.flightNumber}_${flightTo.flightNumber}_${airport}_${year}_${month}_${day}_${hours}_${minutes}`;
 
     // Convert dates to Unix timestamps (seconds since epoch)
     const scheduledArrival = Math.floor(staDate.getTime() / 1000);
@@ -469,9 +469,9 @@ export function CreateTurnaroundModal({
                       >
                         {flight.flightNumber} - {flight.departureAirport} →{" "}
                         {flight.arrivalAirport}
-                        {flight.departureTime && (
+                        {flight.departureTime && flight.arrivalTime && (
                           <span className="text-xs text-gray-500 ml-2">
-                            ({formatTime(flight.departureTime)})
+                            ({formatTime(flight.departureTime)} → {formatTime(flight.arrivalTime)})
                           </span>
                         )}
                       </SelectItem>
@@ -496,9 +496,9 @@ export function CreateTurnaroundModal({
                       >
                         {flight.flightNumber} - {flight.departureAirport} →{" "}
                         {flight.arrivalAirport}
-                        {flight.departureTime && (
+                        {flight.departureTime && flight.arrivalTime && (
                           <span className="text-xs text-gray-500 ml-2">
-                            ({formatTime(flight.departureTime)})
+                            ({formatTime(flight.departureTime)} → {formatTime(flight.arrivalTime)})
                           </span>
                         )}
                       </SelectItem>

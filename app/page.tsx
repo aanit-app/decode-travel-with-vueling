@@ -31,17 +31,21 @@ import { H2, Body } from "./components/typography";
 import { Search, ExternalLink } from "lucide-react";
 import { getExplorerUrl } from "./lib/blockchain";
 import { CreateTurnaroundModal } from "./components/CreateTurnaroundModal";
+import {
+  fetchTaskCompletions,
+  calculateProgress,
+  calculateTATStatus,
+  TATStatus,
+} from "./lib/turnaround-utils";
 
 export enum CertificateStatus {
   Pending = "pending",
   Issued = "issued",
 }
 
-export enum TATStatus {
-  OnTime = "on time",
-  Cancelled = "cancelled",
-  Delayed = "delayed",
-}
+// TATStatus is now imported from ./lib/turnaround-utils
+// Re-export for backward compatibility
+export { TATStatus } from "./lib/turnaround-utils";
 
 type FlightFirestore = {
   turnaroundId?: string;
@@ -144,9 +148,26 @@ export default function Home() {
       const flightsRef = collection(db, "turnarounds");
       const snapshot = await getDocs(flightsRef);
 
-      // Convert Firestore documents to Flight objects
-      const flightsData: Flight[] = snapshot.docs.map((doc) => {
+      // Convert Firestore documents to Flight objects and fetch task completions
+      const flightsDataPromises = snapshot.docs.map(async (doc) => {
         const data = doc.data() as FlightFirestore;
+        const turnaroundId = doc.id;
+
+        // Fetch task completions to calculate progress and status
+        let progress = data.progress; // Fallback to stored progress
+        let tatStatus = data.tatStatus; // Fallback to stored status
+        try {
+          const taskCompletions = await fetchTaskCompletions(turnaroundId);
+          progress = calculateProgress(taskCompletions);
+          
+          // Calculate TAT status based on maximum turnaround duration
+          const staDate = data.sta.toDate();
+          tatStatus = calculateTATStatus(staDate, taskCompletions);
+        } catch (err) {
+          console.error(`Error fetching task completions for ${turnaroundId}:`, err);
+          // Use stored values if fetching fails
+        }
+
         return {
           id: doc.id,
           turnaroundId: data.turnaroundId,
@@ -154,14 +175,16 @@ export default function Home() {
           route: data.route,
           sta: data.sta.toDate(),
           std: data.std.toDate(),
-          progress: data.progress,
-          tatStatus: data.tatStatus,
+          progress: progress,
+          tatStatus: tatStatus,
           cert: data.cert,
           risk: data.risk,
           contractAddress: data.contractAddress,
           chainId: data.chainId,
         };
       });
+
+      const flightsData = await Promise.all(flightsDataPromises);
 
       setFlights(flightsData);
       setError(null);

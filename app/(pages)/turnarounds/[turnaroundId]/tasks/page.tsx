@@ -550,14 +550,12 @@ export default function TurnaroundTasksPage() {
             <TableColumn>TASK</TableColumn>
             <TableColumn>TEAM</TableColumn>
             <TableColumn>STATUS</TableColumn>
-            <TableColumn>DURATION</TableColumn>
-            <TableColumn>DEPENDENCIES</TableColumn>
             <TableColumn>ACTION</TableColumn>
           </TableHeader>
           <TableBody>
             {loadingContractTasks && contractTasks.size === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={5} className="text-center">
                   <Spinner size="sm" />
                   <Body className="ml-2">
                     Loading task status from contract...
@@ -597,27 +595,6 @@ export default function TurnaroundTasksPage() {
                       >
                         {formatStatus(taskStatus)}
                       </Chip>
-                      {contractTask?.completedAt &&
-                        contractTask.completedAt > 0 && (
-                          <Body className="text-xs text-gray-500 mt-1">
-                            Completed:{" "}
-                            {new Date(
-                              contractTask.completedAt * 1000
-                            ).toLocaleString()}
-                          </Body>
-                        )}
-                    </TableCell>
-                    <TableCell>
-                      <Body>{task.duration} min</Body>
-                    </TableCell>
-                    <TableCell>
-                      {task.dependencies && task.dependencies.length > 0 ? (
-                        <Body className="text-sm text-gray-500">
-                          {task.dependencies.join(", ")}
-                        </Body>
-                      ) : (
-                        <Body className="text-sm text-gray-400">None</Body>
-                      )}
                     </TableCell>
                     <TableCell>
                       <Button

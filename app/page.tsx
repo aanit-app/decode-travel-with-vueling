@@ -19,15 +19,13 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
-  Select,
-  SelectItem,
   useDisclosure,
 } from "@heroui/react";
 import { collection, getDocs, addDoc, Timestamp } from "firebase/firestore";
 import { db } from "./lib/firebase";
 import { useAuth } from "./contexts/AuthContext";
 import { useWeb3 } from "./contexts/Web3Context";
-import { H2, Body } from "./components/typography";
+import { H2, H3, Body } from "./components/typography";
 import { Search, ExternalLink } from "lucide-react";
 import { getExplorerUrl } from "./lib/blockchain";
 import { CreateTurnaroundModal } from "./components/CreateTurnaroundModal";
@@ -147,16 +145,19 @@ export default function Home() {
         let progress = data.progress; // Fallback to stored progress
         let tatStatus = data.tatStatus; // Fallback to stored status
         let cert = data.cert; // Fallback to stored cert status
-        
+
         try {
           const taskCompletions = await fetchTaskCompletions(turnaroundId);
           progress = calculateProgress(taskCompletions);
-          
+
           // Calculate TAT status based on maximum turnaround duration
           const staDate = data.sta.toDate();
           tatStatus = calculateTATStatus(staDate, taskCompletions);
         } catch (err) {
-          console.error(`Error fetching task completions for ${turnaroundId}:`, err);
+          console.error(
+            `Error fetching task completions for ${turnaroundId}:`,
+            err
+          );
           // Use stored values if fetching fails
         }
 
@@ -172,7 +173,10 @@ export default function Home() {
               cert = CertificateStatus.Issued;
             }
           } catch (err) {
-            console.error(`Error fetching turnaround state for ${turnaroundId}:`, err);
+            console.error(
+              `Error fetching turnaround state for ${turnaroundId}:`,
+              err
+            );
             // Keep stored cert status if contract fetch fails
           }
         }
@@ -273,7 +277,6 @@ export default function Home() {
       fetchAvailableProviders();
     }
   }, [isOpen]);
-
 
   const handleCreateProvider = async () => {
     setProviderSubmitError(null);
@@ -383,7 +386,7 @@ export default function Home() {
     <div className="min-h-screen pt-20 pb-8 px-4">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between w-full mb-6 mt-8">
-          <H2>Turnaround Checklists</H2>
+          <H3>Turnaround Checklists</H3>
           <div className="flex items-center gap-2">
             <Input
               placeholder="Search turnarounds or routes..."
@@ -435,15 +438,17 @@ export default function Home() {
               aria-label="Turnarounds table"
               selectionMode="single"
               onRowAction={(key) => {
-                const turnaround = filteredTurnarounds.find((t) => t.id === key);
+                const turnaround = filteredTurnarounds.find(
+                  (t) => t.id === key
+                );
                 if (turnaround?.turnaroundId) {
                   router.push(`/turnarounds/${turnaround.turnaroundId}`);
                 }
               }}
             >
               <TableHeader>
+                <TableColumn width={40}>ID</TableColumn>
                 <TableColumn>FLIGHT</TableColumn>
-                <TableColumn width={100}>TURNAROUND</TableColumn>
                 <TableColumn>AIRCRAFT ID</TableColumn>
                 <TableColumn>ROUTE</TableColumn>
                 <TableColumn>STA</TableColumn>
@@ -454,16 +459,19 @@ export default function Home() {
                 <TableColumn>CERTIFICATE</TableColumn>
                 <TableColumn width={50}> </TableColumn>
               </TableHeader>
-               <TableBody items={filteredTurnarounds}>
-                 {(turnaround) => (
-                   <TableRow key={turnaround.id} className="cursor-pointer">
+              <TableBody items={filteredTurnarounds}>
+                {(turnaround) => (
+                  <TableRow key={turnaround.id} className="cursor-pointer">
                     <TableCell>
-                      <span className="font-semibold">{turnaround.flight}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-semibold block max-w-[100px] truncate" title={turnaround.turnaroundId || turnaround.id}>
+                      <span
+                        className="font-semibold text-sm block max-w-[40px] truncate"
+                        title={turnaround.turnaroundId || turnaround.id}
+                      >
                         {turnaround.turnaroundId || turnaround.id}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-semibold">{turnaround.flight}</span>
                     </TableCell>
                     <TableCell>
                       {turnaround.aircraftId ? (

@@ -12,6 +12,7 @@ import {
 interface Settings {
   contractAddress: string;
   notifications: boolean;
+  notificationsDrawerOpen?: boolean;
   defaultProviders?: {
     groundHandlingProvider: string;
     cleaningProvider: string;

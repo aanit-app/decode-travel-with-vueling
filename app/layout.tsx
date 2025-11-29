@@ -1,9 +1,11 @@
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Navbar } from "./components/Navbar";
+import { NotificationsDrawer } from "./components/NotificationsDrawer";
 import { Providers } from "./providers";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { Web3Provider } from "./contexts/Web3Context";
+import { LayoutContent } from "./components/LayoutContent";
 
 export const viewport = {
   themeColor: [
@@ -33,7 +35,8 @@ export default function RootLayout({
             <AuthProvider>
               <Web3Provider>
                 <Navbar />
-                {children}
+                <LayoutContent>{children}</LayoutContent>
+                <NotificationsDrawer />
               </Web3Provider>
             </AuthProvider>
           </SettingsProvider>

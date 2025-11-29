@@ -7,12 +7,18 @@ import { ThemeSwitch } from "./theme-switch";
 import { UserMenu } from "./UserMenu";
 import { useAuth } from "../contexts/AuthContext";
 import { useWeb3 } from "../contexts/Web3Context";
-import { Trophy } from "lucide-react";
+import { useSettings } from "../contexts/SettingsContext";
+import { Trophy, Bell } from "lucide-react";
 
 export function Navbar() {
   const { user, loading: authLoading } = useAuth();
   const { isConnected } = useWeb3();
+  const { settings, updateSettings } = useSettings();
   const isSignedIn = user || isConnected;
+
+  const toggleNotificationsDrawer = () => {
+    updateSettings({ notificationsDrawerOpen: !settings.notificationsDrawerOpen });
+  };
 
   return (
     <nav
@@ -35,15 +41,26 @@ export function Navbar() {
 
         <div className="flex items-center gap-4">
           {isSignedIn && (
-            <Button
-              as={Link}
-              href="/leaderboard"
-              variant="light"
-              isIconOnly
-              aria-label="Leaderboard"
-            >
-              <Trophy className="w-5 h-5" />
-            </Button>
+            <>
+              <Button
+                as={Link}
+                href="/leaderboard"
+                variant="light"
+                isIconOnly
+                aria-label="Leaderboard"
+              >
+                <Trophy className="w-5 h-5" />
+              </Button>
+              <Button
+                variant="light"
+                isIconOnly
+                onPress={toggleNotificationsDrawer}
+                aria-label="Notifications"
+                className={settings.notificationsDrawerOpen ? "bg-gray-100 dark:bg-gray-800" : ""}
+              >
+                <Bell className="w-5 h-5" />
+              </Button>
+            </>
           )}
           <ThemeSwitch className="pr-4" />
           {!authLoading && (

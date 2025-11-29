@@ -334,8 +334,8 @@ export function CreateTurnaroundModal({
         return;
       }
 
-      // Calculate route from flight airports
-      const route = `${flightFrom.arrivalAirport} → ${flightTo.departureAirport}`;
+      // Calculate full route showing both flights
+      const route = `${flightFrom.departureAirport} → ${flightFrom.arrivalAirport} : ${flightTo.departureAirport} → ${flightTo.arrivalAirport}`;
 
       // Use the next flight number as the main flight identifier
       const flight = flightTo.flightNumber;

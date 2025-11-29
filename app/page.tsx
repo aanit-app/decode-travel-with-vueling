@@ -48,7 +48,7 @@ export enum CertificateStatus {
 // Re-export for backward compatibility
 export { TATStatus } from "./lib/turnaround-utils";
 
-type FlightFirestore = {
+type TurnaroundFirestore = {
   turnaroundId?: string;
   flight: string;
   route: string;
@@ -60,9 +60,10 @@ type FlightFirestore = {
   risk: string;
   contractAddress?: string;
   chainId?: number;
+  aircraftId?: string;
 };
 
-type Flight = {
+type Turnaround = {
   id: string;
   turnaroundId?: string;
   flight: string;
@@ -75,6 +76,7 @@ type Flight = {
   risk: string;
   contractAddress?: string;
   chainId?: number;
+  aircraftId?: string;
 };
 
 // Format Date to time string for display
@@ -86,10 +88,10 @@ const formatTime = (date: Date): string => {
 
 export default function Home() {
   const { user, loading: authLoading } = useAuth();
-  const { isConnected } = useWeb3();
+  const { isConnected, getTurnaroundState } = useWeb3();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [flights, setFlights] = useState<Flight[]>([]);
+  const [turnarounds, setTurnarounds] = useState<Turnaround[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -130,20 +132,22 @@ export default function Home() {
     }
   }, [user, isConnected, authLoading, router]);
 
-  const fetchFlights = async () => {
+  const fetchTurnarounds = async () => {
     try {
       setLoading(true);
-      const flightsRef = collection(db, "turnarounds");
-      const snapshot = await getDocs(flightsRef);
+      const turnaroundsRef = collection(db, "turnarounds");
+      const snapshot = await getDocs(turnaroundsRef);
 
-      // Convert Firestore documents to Flight objects and fetch task completions
-      const flightsDataPromises = snapshot.docs.map(async (doc) => {
-        const data = doc.data() as FlightFirestore;
+      // Convert Firestore documents to Turnaround objects and fetch task completions
+      const turnaroundsDataPromises = snapshot.docs.map(async (doc) => {
+        const data = doc.data() as TurnaroundFirestore;
         const turnaroundId = doc.id;
 
         // Fetch task completions to calculate progress and status
         let progress = data.progress; // Fallback to stored progress
         let tatStatus = data.tatStatus; // Fallback to stored status
+        let cert = data.cert; // Fallback to stored cert status
+        
         try {
           const taskCompletions = await fetchTaskCompletions(turnaroundId);
           progress = calculateProgress(taskCompletions);
@@ -156,6 +160,23 @@ export default function Home() {
           // Use stored values if fetching fails
         }
 
+        // Check if turnaround is certified/finalized from contract
+        if (data.contractAddress && data.chainId && getTurnaroundState) {
+          try {
+            const turnaroundState = await getTurnaroundState(
+              data.contractAddress,
+              data.chainId
+            );
+            // If certified, update cert status to issued
+            if (turnaroundState.certified) {
+              cert = CertificateStatus.Issued;
+            }
+          } catch (err) {
+            console.error(`Error fetching turnaround state for ${turnaroundId}:`, err);
+            // Keep stored cert status if contract fetch fails
+          }
+        }
+
         return {
           id: doc.id,
           turnaroundId: data.turnaroundId,
@@ -165,20 +186,21 @@ export default function Home() {
           std: data.std.toDate(),
           progress: progress,
           tatStatus: tatStatus,
-          cert: data.cert,
+          cert: cert,
           risk: data.risk,
           contractAddress: data.contractAddress,
           chainId: data.chainId,
+          aircraftId: data.aircraftId,
         };
       });
 
-      const flightsData = await Promise.all(flightsDataPromises);
+      const turnaroundsData = await Promise.all(turnaroundsDataPromises);
 
-      setFlights(flightsData);
+      setTurnarounds(turnaroundsData);
       setError(null);
     } catch (err) {
-      console.error("Error fetching flights:", err);
-      setError("An error occurred while fetching flights");
+      console.error("Error fetching turnarounds:", err);
+      setError("An error occurred while fetching turnarounds");
     } finally {
       setLoading(false);
     }
@@ -238,7 +260,7 @@ export default function Home() {
 
   useEffect(() => {
     if (user || isConnected) {
-      fetchFlights();
+      fetchTurnarounds();
       fetchAvailableFlights();
       fetchAvailableProviders();
     }
@@ -296,10 +318,10 @@ export default function Home() {
     }
   };
 
-  const filteredFlights = flights.filter(
-    (flight) =>
-      flight.flight.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      flight.route.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTurnarounds = turnarounds.filter(
+    (turnaround) =>
+      turnaround.flight.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      turnaround.route.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getRiskColor = (
@@ -364,7 +386,7 @@ export default function Home() {
           <H2>Turnaround Checklists</H2>
           <div className="flex items-center gap-2">
             <Input
-              placeholder="Search flights or routes..."
+              placeholder="Search turnarounds or routes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               startContent={<Search className="w-4 h-4" />}
@@ -402,25 +424,27 @@ export default function Home() {
             <div className="flex items-center justify-center py-12">
               <Body className="text-danger">{error}</Body>
             </div>
-          ) : filteredFlights.length === 0 ? (
+          ) : filteredTurnarounds.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <Body className="text-gray-500 dark:text-gray-400">
-                No flights found
+                No turnarounds found
               </Body>
             </div>
           ) : (
             <Table
-              aria-label="Flights table"
+              aria-label="Turnarounds table"
               selectionMode="single"
               onRowAction={(key) => {
-                const flight = filteredFlights.find((f) => f.id === key);
-                if (flight?.turnaroundId) {
-                  router.push(`/turnarounds/${flight.turnaroundId}`);
+                const turnaround = filteredTurnarounds.find((t) => t.id === key);
+                if (turnaround?.turnaroundId) {
+                  router.push(`/turnarounds/${turnaround.turnaroundId}`);
                 }
               }}
             >
               <TableHeader>
                 <TableColumn>FLIGHT</TableColumn>
+                <TableColumn width={100}>TURNAROUND</TableColumn>
+                <TableColumn>AIRCRAFT ID</TableColumn>
                 <TableColumn>ROUTE</TableColumn>
                 <TableColumn>STA</TableColumn>
                 <TableColumn>STD</TableColumn>
@@ -430,77 +454,93 @@ export default function Home() {
                 <TableColumn>CERTIFICATE</TableColumn>
                 <TableColumn width={50}> </TableColumn>
               </TableHeader>
-               <TableBody items={filteredFlights}>
-                 {(flight) => (
-                   <TableRow key={flight.id} className="cursor-pointer">
+               <TableBody items={filteredTurnarounds}>
+                 {(turnaround) => (
+                   <TableRow key={turnaround.id} className="cursor-pointer">
                     <TableCell>
-                      <span className="font-semibold">{flight.flight}</span>
+                      <span className="font-semibold">{turnaround.flight}</span>
                     </TableCell>
-                    <TableCell>{flight.route}</TableCell>
+                    <TableCell>
+                      <span className="font-semibold block max-w-[100px] truncate" title={turnaround.turnaroundId || turnaround.id}>
+                        {turnaround.turnaroundId || turnaround.id}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {turnaround.aircraftId ? (
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {turnaround.aircraftId}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          —
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>{turnaround.route}</TableCell>
                     <TableCell>
                       <span className="font-medium">
-                        {formatTime(flight.sta)}
+                        {formatTime(turnaround.sta)}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span className="font-medium">
-                        {formatTime(flight.std)}
+                        {formatTime(turnaround.std)}
                       </span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3 min-w-[150px]">
                         <Progress
-                          value={flight.progress}
+                          value={turnaround.progress}
                           className="flex-1"
                           color={
-                            flight.progress >= 75
+                            turnaround.progress >= 75
                               ? "success"
-                              : flight.progress >= 50
+                              : turnaround.progress >= 50
                               ? "warning"
                               : "danger"
                           }
                         />
                         <span className="text-xs font-medium text-gray-600 dark:text-gray-400 min-w-[35px]">
-                          {flight.progress}%
+                          {turnaround.progress}%
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Chip
-                        color={getTatStatusColor(flight.tatStatus)}
+                        color={getTatStatusColor(turnaround.tatStatus)}
                         variant="flat"
                         className="capitalize"
                       >
-                        {flight.tatStatus}
+                        {turnaround.tatStatus}
                       </Chip>
                     </TableCell>
                     <TableCell>
                       <Chip
-                        color={getRiskColor(flight.risk)}
+                        color={getRiskColor(turnaround.risk)}
                         variant="flat"
                         className="uppercase"
                       >
-                        {flight.risk}
+                        {turnaround.risk}
                       </Chip>
                     </TableCell>
                     <TableCell>
                       <Chip
-                        color={getCertColor(flight.cert)}
+                        color={getCertColor(turnaround.cert)}
                         variant="flat"
                         className="capitalize"
                       >
-                        {flight.cert}
+                        {turnaround.cert}
                       </Chip>
                     </TableCell>
                     <TableCell>
-                      {flight.contractAddress && flight.chainId ? (
+                      {turnaround.contractAddress && turnaround.chainId ? (
                         <div
                           onClick={(e) => {
                             e.stopPropagation();
                             window.open(
                               getExplorerUrl(
-                                flight.chainId!,
-                                flight.contractAddress!
+                                turnaround.chainId!,
+                                turnaround.contractAddress!
                               ),
                               "_blank",
                               "noopener,noreferrer"
@@ -531,7 +571,7 @@ export default function Home() {
         availableProviders={availableProviders}
         loadingFlights={loadingFlights}
         loadingProviders={loadingProviders}
-        onSuccess={fetchFlights}
+        onSuccess={fetchTurnarounds}
       />
 
       <CreateFlightModal

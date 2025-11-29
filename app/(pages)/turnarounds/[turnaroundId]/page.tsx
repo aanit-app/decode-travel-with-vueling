@@ -381,7 +381,11 @@ export default function TurnaroundDetailsPage() {
                 {turnaround.flightNumber && (
                   <Body>Flight Number: {turnaround.flightNumber}</Body>
                 )}
-                {turnaround.route && <Body>Route: {turnaround.route}</Body>}
+                {turnaround.route && (
+                  <Body className="whitespace-nowrap overflow-hidden text-ellipsis">
+                    Route: {turnaround.route}
+                  </Body>
+                )}
                 {turnaround.contractAddress && (
                   <Body>
                     Contract Address: {turnaround.contractAddress.slice(0, 10)}

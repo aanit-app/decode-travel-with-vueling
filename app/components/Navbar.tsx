@@ -7,6 +7,7 @@ import { ThemeSwitch } from "./theme-switch";
 import { UserMenu } from "./UserMenu";
 import { useAuth } from "../contexts/AuthContext";
 import { useWeb3 } from "../contexts/Web3Context";
+import { Trophy } from "lucide-react";
 
 export function Navbar() {
   const { user, loading: authLoading } = useAuth();
@@ -32,7 +33,18 @@ export function Navbar() {
           />
         </Link>
 
-        <div className="flex items-center gap-0">
+        <div className="flex items-center gap-4">
+          {isSignedIn && (
+            <Button
+              as={Link}
+              href="/leaderboard"
+              variant="light"
+              isIconOnly
+              aria-label="Leaderboard"
+            >
+              <Trophy className="w-5 h-5" />
+            </Button>
+          )}
           <ThemeSwitch className="pr-4" />
           {!authLoading && (
             <>

@@ -75,11 +75,11 @@ export function UserMenu() {
               </DropdownItem>
             ) : null}
             <DropdownItem
-              key="souvenirs"
+              key="leaderboard"
               startContent={<Gift className="w-4 h-4" />}
-              onClick={() => router.push("/souvenirs")}
+              onClick={() => router.push("/leaderboard")}
             >
-              Souvenirs
+              Leaderboard
             </DropdownItem>
             <DropdownItem
               key="settings"
